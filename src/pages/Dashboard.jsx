@@ -6,7 +6,7 @@ import {
   AreaChart, Area, LineChart, Line, Legend
 } from 'recharts';
 import { useSettings } from '../SettingsContext';
-import db, { SEEDED_ANIMALS_COUNT, loadSeededAnimalsSafely } from '../db';
+import db, { SEEDED_ANIMALS_COUNT, getUniqueAnimals, loadSeededAnimalsSafely } from '../db';
 import './Dashboard.css';
 
 // ─── DYNAMIC DATA HOOKS ──────────────────────────────────────────────
@@ -43,7 +43,7 @@ export default function Dashboard({ addToast }) {
   useEffect(() => {
     async function loadDashboardData() {
       try {
-        const animals = await db.animals.toArray();
+        const animals = await getUniqueAnimals();
         const milkRecords = await db.milkRecords?.toArray() || [];
         const expenses = await db.expenses.toArray();
         const revenues = await db.revenueRecords.toArray();

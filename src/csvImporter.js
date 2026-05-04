@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import db from './db';
+import db, { upsertAnimal } from './db';
 
 // CSV file mapping to their import handlers
 const FILE_HANDLERS = {
@@ -90,24 +90,17 @@ async function importCostLedger(data) {
     const adminCost = parseFloat(row[5]) || 0;
 
     // Upsert animal
-    const existing = await db.animals.where('tag').equals(tag).first();
-    if (existing) {
-      await db.animals.update(existing.id, { purchase_price: purchasePrice });
-    } else {
-      await db.animals.add({
-        tag,
-        species: 'buffalo',
-        pen_id: '',
-        status: 'active',
-        lifecycle_stage: 'heifer',
-        purchase_price: purchasePrice,
-        entry_weight: 0,
-        entry_date: null,
-        notes: '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-    }
+    await upsertAnimal({
+      tag,
+      species: 'buffalo',
+      pen_id: '',
+      status: 'active',
+      lifecycle_stage: 'fattening',
+      purchase_price: purchasePrice,
+      entry_weight: 0,
+      entry_date: null,
+      notes: '',
+    });
 
     // Add expense records
     if (feedCost > 0) {
@@ -148,22 +141,17 @@ async function importWeightRecords(data) {
     const ageConv = parseFloat(row[7]) || 0;
 
     // Upsert animal with pen and entry data
-    const existing = await db.animals.where('tag').equals(tag).first();
-    if (existing) {
-      await db.animals.update(existing.id, {
-        pen_id: penId,
-        entry_date: entryDate,
-        entry_weight: entryWeight,
-        updated_at: new Date().toISOString(),
-      });
-    } else {
-      await db.animals.add({
-        tag, species: 'buffalo', pen_id: penId, status: 'active',
-        lifecycle_stage: 'heifer', purchase_price: 0,
-        entry_weight: entryWeight, entry_date: entryDate,
-        notes: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      });
-    }
+    await upsertAnimal({
+      tag,
+      species: 'buffalo',
+      pen_id: penId,
+      status: 'active',
+      lifecycle_stage: 'fattening',
+      purchase_price: 0,
+      entry_weight: entryWeight,
+      entry_date: entryDate,
+      notes: '',
+    });
 
     // Add weight records
     if (weighing1 > 0) {
@@ -296,22 +284,17 @@ async function importDailyFeedCosts(data) {
 
     // Upsert animal
     const existing = await db.animals.where('tag').equals(tag).first();
-    if (existing) {
-      await db.animals.update(existing.id, {
-        pen_id: penId || existing.pen_id,
-        entry_date: entryDate || existing.entry_date,
-        entry_weight: entryWeight || existing.entry_weight,
-        purchase_price: purchasePrice || existing.purchase_price,
-        updated_at: new Date().toISOString(),
-      });
-    } else {
-      await db.animals.add({
-        tag, species: 'buffalo', pen_id: penId, status: 'active',
-        lifecycle_stage: 'heifer', purchase_price: purchasePrice,
-        entry_weight: entryWeight, entry_date: entryDate,
-        notes: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      });
-    }
+    await upsertAnimal({
+      tag,
+      species: 'buffalo',
+      pen_id: penId || existing?.pen_id || '',
+      status: 'active',
+      lifecycle_stage: existing?.lifecycle_stage || 'fattening',
+      purchase_price: purchasePrice || existing?.purchase_price || 0,
+      entry_weight: entryWeight || existing?.entry_weight || 0,
+      entry_date: entryDate || existing?.entry_date || null,
+      notes: existing?.notes || '',
+    });
 
     // Find the TOTAL column and add feed as a single lump
     // The total is typically near the end of the row
@@ -351,22 +334,17 @@ async function importMainDashboard(data) {
     const daysOnFarm = parseFloat(row[5]) || 0;
 
     const existing = await db.animals.where('tag').equals(tag).first();
-    if (existing) {
-      await db.animals.update(existing.id, {
-        pen_id: penId || existing.pen_id,
-        entry_date: entryDate || existing.entry_date,
-        entry_weight: entryWeight || existing.entry_weight,
-        purchase_price: purchasePrice || existing.purchase_price,
-        updated_at: new Date().toISOString(),
-      });
-    } else {
-      await db.animals.add({
-        tag, species: 'buffalo', pen_id: penId, status: 'active',
-        lifecycle_stage: 'heifer', purchase_price: purchasePrice,
-        entry_weight: entryWeight, entry_date: entryDate,
-        notes: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      });
-    }
+    await upsertAnimal({
+      tag,
+      species: 'buffalo',
+      pen_id: penId || existing?.pen_id || '',
+      status: 'active',
+      lifecycle_stage: existing?.lifecycle_stage || 'fattening',
+      purchase_price: purchasePrice || existing?.purchase_price || 0,
+      entry_weight: entryWeight || existing?.entry_weight || 0,
+      entry_date: entryDate || existing?.entry_date || null,
+      notes: existing?.notes || '',
+    });
     count++;
   }
   return count;

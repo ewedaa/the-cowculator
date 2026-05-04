@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../SettingsContext';
-import db, { SEEDED_ANIMALS_COUNT, loadSeededAnimalsSafely } from '../db';
+import db, { SEEDED_ANIMALS_COUNT, loadSeededAnimalsSafely, upsertAnimal } from '../db';
 import './ManualEntry.css';
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -176,8 +176,7 @@ export default function ManualEntry({ addToast }) {
             notes: row.notes || '',
             updated_at: new Date().toISOString(),
           };
-          if (existing) await db.animals.update(existing.id, data);
-          else await db.animals.add({ ...data, created_at: new Date().toISOString() });
+          await upsertAnimal(data);
           saved++;
 
         } else if (tab === 'weights') {

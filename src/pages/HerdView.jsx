@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAnimalsWithPL } from '../db';
 import { useSettings } from '../SettingsContext';
-import db, { SEEDED_ANIMALS_COUNT, deleteAnimalAndRelatedRecords, loadSeededAnimalsSafely } from '../db';
+import db, { SEEDED_ANIMALS_COUNT, deleteAnimalAndRelatedRecords, loadSeededAnimalsSafely, upsertAnimal } from '../db';
 import { generateAnimalPDF } from '../utils/AnimalPDFReport';
 import './HerdView.css';
 
@@ -57,7 +57,7 @@ export default function HerdView({ addToast }) {
   const speciesUsed = [...new Set(animals.map(a => a.species).filter(Boolean))];
 
   async function handleAddAnimal(formData) {
-    await db.animals.add({
+    await upsertAnimal({
       tag: parseInt(formData.tag),
       species: formData.species || settings.species[0],
       pen_id: formData.pen_id || '',
@@ -67,8 +67,6 @@ export default function HerdView({ addToast }) {
       entry_weight: parseFloat(formData.entry_weight) || 0,
       entry_date: formData.entry_date || new Date().toISOString().split('T')[0],
       notes: formData.notes || '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     });
     addToast('Animal added successfully');
     setShowAddModal(false);

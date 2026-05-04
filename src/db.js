@@ -8,16 +8,29 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+function normalizeAnimalRecord(record) {
+  return {
+    ...record,
+    tag: toNumber(record.tag, record.tag),
+    purchase_price: toNumber(record.purchase_price),
+    entry_weight: toNumber(record.entry_weight),
+    price_per_kg_entry: toNumber(record.price_per_kg_entry),
+    fattening_days: record.fattening_days == null || record.fattening_days === ''
+      ? null
+      : toNumber(record.fattening_days, null),
+    species: record.species || 'buffalo',
+    lifecycle_stage: record.lifecycle_stage || 'fattening',
+    status: record.status || 'active',
+  };
+}
+
 async function upsertSeededAnimals() {
-  const existingAnimals = await db.animals.toArray();
+  const existingAnimals = await getUniqueAnimals();
   const existingTags = new Set(existingAnimals.map((animal) => String(animal.tag)));
 
   const missingAnimals = SEEDED_ANIMALS
     .filter((animal) => !existingTags.has(String(animal.tag)))
-    .map((animal) => ({
-      ...animal,
-      species: 'buffalo',
-    }));
+    .map((animal) => normalizeAnimalRecord(animal));
 
   if (missingAnimals.length > 0) {
     await db.animals.bulkAdd(missingAnimals);
@@ -50,6 +63,57 @@ export async function dedupeAnimalsByTag() {
   return duplicateIds.length;
 }
 
+export async function getUniqueAnimals() {
+  const animals = await db.animals.toArray();
+  const uniqueAnimals = [];
+  const seenTags = new Set();
+  const duplicateIds = [];
+
+  for (const animal of animals) {
+    const key = String(animal.tag);
+    if (!key) continue;
+
+    if (seenTags.has(key)) {
+      duplicateIds.push(animal.id);
+      continue;
+    }
+
+    seenTags.add(key);
+    uniqueAnimals.push(normalizeAnimalRecord(animal));
+  }
+
+  if (duplicateIds.length > 0) {
+    await db.animals.bulkDelete(duplicateIds);
+  }
+
+  return uniqueAnimals;
+}
+
+export async function upsertAnimal(record) {
+  const normalized = normalizeAnimalRecord(record);
+  const tag = toNumber(normalized.tag, null);
+  if (tag == null) {
+    throw new Error('Animal tag is required');
+  }
+
+  const existing = await db.animals.where('tag').equals(tag).first();
+  const timestamp = new Date().toISOString();
+
+  if (existing) {
+    await db.animals.update(existing.id, {
+      ...normalized,
+      updated_at: timestamp,
+    });
+    return existing.id;
+  }
+
+  return db.animals.add({
+    ...normalized,
+    created_at: timestamp,
+    updated_at: timestamp,
+  });
+}
+
 db.version(2).stores({
   animals: '++id, tag, species, pen_id, status, lifecycle_stage, entry_date',
   expenses: '++id, animal_tag, date, category',
@@ -68,9 +132,9 @@ export default db;
 
 // Migration: Ensure all imported or created animals default to 'buffalo'
 if (typeof window !== 'undefined') {
-  setTimeout(async () => {
+  (async () => {
     try {
-      const existing = await db.animals.toArray();
+      const existing = await getUniqueAnimals();
       if (existing.length === 0) {
         // Automatically seed the sample buffalo list on first empty startup
         const inserted = await upsertSeededAnimals();
@@ -89,7 +153,7 @@ if (typeof window !== 'undefined') {
     } catch (e) {
       console.error(e);
     }
-  }, 100);
+  })();
 }
 
 
@@ -153,7 +217,7 @@ function getMarketPrice() {
 
 // Get all animals with computed profit/loss
 export async function getAnimalsWithPL(marketPriceOverride) {
-  const animals = await db.animals.toArray();
+  const animals = await getUniqueAnimals();
   const expenses = await db.expenses.toArray();
   const revenues = await db.revenueRecords.toArray();
   const weights = await db.weightRecords.toArray();

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSettings } from '../SettingsContext';
-import db from '../db';
+import db, { dedupeAnimalsByTag } from '../db';
 import Papa from 'papaparse';
 import './Settings.css';
 
@@ -69,6 +69,7 @@ export default function Settings({ addToast }) {
           await db[table].bulkAdd(backup[table]);
         }
       }
+      await dedupeAnimalsByTag();
       if (backup.settings) {
         updateSettings(backup.settings);
       }

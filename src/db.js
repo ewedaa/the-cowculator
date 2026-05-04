@@ -2,6 +2,10 @@ import Dexie from 'dexie';
 import { SEEDED_ANIMALS } from './seededAnimals';
 
 const db = new Dexie('CowculatorDB');
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
 
 db.version(2).stores({
   animals: '++id, tag, species, pen_id, status, lifecycle_stage, entry_date',
@@ -66,7 +70,7 @@ export async function getAnimalsWithPL(marketPriceOverride) {
   const expenses = await db.expenses.toArray();
   const revenues = await db.revenueRecords.toArray();
   const weights = await db.weightRecords.toArray();
-  const marketPrice = marketPriceOverride || getMarketPrice();
+  const marketPrice = toNumber(marketPriceOverride, getMarketPrice());
 
   return animals.map(animal => {
     const animalExpenses = expenses.filter(e => e.animal_tag === animal.tag);
@@ -74,18 +78,23 @@ export async function getAnimalsWithPL(marketPriceOverride) {
     const animalWeights = weights.filter(w => w.animal_tag === animal.tag)
       .sort((a, b) => new Date(b.weigh_date) - new Date(a.weigh_date));
 
-    const totalFeed = animalExpenses.filter(e => e.category === 'feed').reduce((s, e) => s + (e.amount || 0), 0);
-    const totalVaccines = animalExpenses.filter(e => e.category === 'vaccine').reduce((s, e) => s + (e.amount || 0), 0);
-    const totalMedicine = animalExpenses.filter(e => e.category === 'medicine').reduce((s, e) => s + (e.amount || 0), 0);
-    const totalAdmin = animalExpenses.filter(e => e.category === 'admin').reduce((s, e) => s + (e.amount || 0), 0);
-    const totalOther = animalExpenses.filter(e => !['feed','vaccine','medicine','admin'].includes(e.category)).reduce((s, e) => s + (e.amount || 0), 0);
+    const purchasePrice = toNumber(animal.purchase_price);
+    const entryWeight = toNumber(animal.entry_weight);
+
+    const totalFeed = animalExpenses.filter(e => e.category === 'feed').reduce((s, e) => s + toNumber(e.amount), 0);
+    const totalVaccines = animalExpenses.filter(e => e.category === 'vaccine').reduce((s, e) => s + toNumber(e.amount), 0);
+    const totalMedicine = animalExpenses.filter(e => e.category === 'medicine').reduce((s, e) => s + toNumber(e.amount), 0);
+    const totalAdmin = animalExpenses.filter(e => e.category === 'admin').reduce((s, e) => s + toNumber(e.amount), 0);
+    const totalOther = animalExpenses.filter(e => !['feed','vaccine','medicine','admin'].includes(e.category)).reduce((s, e) => s + toNumber(e.amount), 0);
     const totalExpenses = totalFeed + totalVaccines + totalMedicine + totalAdmin + totalOther;
-    const totalCost = (animal.purchase_price || 0) + totalExpenses;
-    const totalRevenue = animalRevenues.reduce((s, r) => s + (r.amount || 0), 0);
+    const totalCost = purchasePrice + totalExpenses;
+    const totalRevenue = animalRevenues.reduce((s, r) => s + toNumber(r.amount), 0);
     const profitLoss = totalRevenue - totalCost;
 
-    const currentWeight = animalWeights.length > 0 ? animalWeights[0].weight_kg : animal.entry_weight;
-    const weightGain = currentWeight - (animal.entry_weight || 0);
+    const currentWeight = animalWeights.length > 0
+      ? toNumber(animalWeights[0].weight_kg, entryWeight)
+      : entryWeight;
+    const weightGain = currentWeight - entryWeight;
     const daysOnFarm = animal.entry_date
       ? Math.floor((new Date() - new Date(animal.entry_date)) / (1000 * 60 * 60 * 24))
       : 0;
@@ -96,6 +105,8 @@ export async function getAnimalsWithPL(marketPriceOverride) {
 
     return {
       ...animal,
+      purchase_price: purchasePrice,
+      entry_weight: entryWeight,
       totalFeed,
       totalVaccines,
       totalMedicine,

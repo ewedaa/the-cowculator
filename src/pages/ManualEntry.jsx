@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../SettingsContext';
-import db from '../db';
+import db, { SEEDED_ANIMALS_COUNT } from '../db';
 import './ManualEntry.css';
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -270,8 +270,8 @@ export default function ManualEntry({ addToast }) {
         </div>
         <div className="flex gap-sm">
           <button className="btn btn-ghost btn-sm" onClick={() => setRows(SEEDED_ANIMALS)}
-            title="Re-load the 165 sample animals from the screenshot">
-            🐄 Load Sample (165)
+            title={`Re-load the ${SEEDED_ANIMALS_COUNT} sample animals from the screenshot`}>
+            🐄 Load Sample ({SEEDED_ANIMALS_COUNT})
           </button>
           <button className="btn btn-ghost" onClick={() => setShowPaste(s => !s)}
             style={showPaste ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : {}}>

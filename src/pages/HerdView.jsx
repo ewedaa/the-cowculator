@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAnimalsWithPL } from '../db';
 import { useSettings } from '../SettingsContext';
-import db from '../db';
+import db, { SEEDED_ANIMALS_COUNT, deleteAnimalAndRelatedRecords } from '../db';
 import { generateAnimalPDF } from '../utils/AnimalPDFReport';
 import './HerdView.css';
 
@@ -97,18 +97,14 @@ export default function HerdView({ addToast }) {
 
   async function handleDeleteAnimal(tag) {
     if (!confirm(`Delete animal #${tag} and all associated records?`)) return;
-    const animal = await db.animals.where('tag').equals(tag).first();
-    if (animal) {
-      await db.animals.delete(animal.id);
-      await db.expenses.where('animal_tag').equals(tag).delete();
-      await db.weightRecords.where('animal_tag').equals(tag).delete();
-      await db.vaccineRecords.where('animal_tag').equals(tag).delete();
-      await db.medicineRecords.where('animal_tag').equals(tag).delete();
-      await db.revenueRecords.where('animal_tag').equals(tag).delete();
+    const deleted = await deleteAnimalAndRelatedRecords(tag);
+    if (deleted) {
+      addToast(`Animal #${tag} deleted`);
+      setSelectedAnimal(null);
+      loadAnimals();
+      return;
     }
-    addToast(`Animal #${tag} deleted`);
-    setSelectedAnimal(null);
-    loadAnimals();
+    addToast(`Animal #${tag} was not found`, 'error');
   }
 
   async function handleBulkRegroup() {
@@ -205,7 +201,7 @@ export default function HerdView({ addToast }) {
         <div className="empty-state">
           <div className="empty-state-icon">🐄</div>
           <h3>No animals in the herd</h3>
-          <p>Add your first animal manually, import CSV data, or auto-load the 165 animals below.</p>
+          <p>Add your first animal manually, import CSV data, or auto-load the {SEEDED_ANIMALS_COUNT} animals below.</p>
           <div className="flex gap-sm" style={{ marginTop: 16 }}>
             <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>+ Add Animal</button>
             <button className="btn btn-ghost" onClick={async () => {
@@ -213,7 +209,7 @@ export default function HerdView({ addToast }) {
               const toAdd = SEEDED_ANIMALS.map(a => ({ ...a, species: 'buffalo' }));
               await db.animals.bulkAdd(toAdd);
               window.location.reload();
-            }}>🐄 Load Sample (165)</button>
+            }}>🐄 Load Sample ({SEEDED_ANIMALS_COUNT})</button>
           </div>
         </div>
       ) : viewMode === 'grid' ? (

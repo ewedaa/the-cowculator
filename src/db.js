@@ -2,6 +2,7 @@ import Dexie from 'dexie';
 import { SEEDED_ANIMALS } from './seededAnimals';
 
 const db = new Dexie('CowculatorDB');
+export const SEEDED_ANIMALS_COUNT = SEEDED_ANIMALS.length;
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -29,13 +30,13 @@ if (typeof window !== 'undefined') {
     try {
       const existing = await db.animals.toArray();
       if (existing.length === 0) {
-        // Automatically seed the 165 buffalos on new PC empty startup
+        // Automatically seed the sample buffalo list on first empty startup
         const toAdd = SEEDED_ANIMALS.map(a => ({
           ...a,
           species: 'buffalo'
         }));
         await db.animals.bulkAdd(toAdd);
-        console.log('Successfully auto-seeded the 165 animals on first empty PC launch.');
+        console.log(`Successfully auto-seeded ${SEEDED_ANIMALS_COUNT} animals on first empty PC launch.`);
       } else {
         for (const animal of existing) {
           if (animal.species === 'heifer' || !animal.species) {
@@ -54,6 +55,40 @@ if (typeof window !== 'undefined') {
 export async function resetDatabase() {
   await db.delete();
   window.location.reload();
+}
+
+export async function deleteAnimalAndRelatedRecords(tag) {
+  const numericTag = toNumber(tag, null);
+  if (numericTag == null) return false;
+
+  const animal = await db.animals.where('tag').equals(numericTag).first();
+  if (!animal) return false;
+
+  await db.transaction(
+    'rw',
+    db.animals,
+    db.expenses,
+    db.weightRecords,
+    db.vaccineRecords,
+    db.medicineRecords,
+    db.dailyFeedCosts,
+    db.revenueRecords,
+    db.milkRecords,
+    db.pregnancyRecords,
+    async () => {
+      await db.animals.delete(animal.id);
+      await db.expenses.where('animal_tag').equals(numericTag).delete();
+      await db.weightRecords.where('animal_tag').equals(numericTag).delete();
+      await db.vaccineRecords.where('animal_tag').equals(numericTag).delete();
+      await db.medicineRecords.where('animal_tag').equals(numericTag).delete();
+      await db.dailyFeedCosts.where('animal_tag').equals(numericTag).delete();
+      await db.revenueRecords.where('animal_tag').equals(numericTag).delete();
+      await db.milkRecords.where('animal_tag').equals(numericTag).delete();
+      await db.pregnancyRecords.where('animal_tag').equals(numericTag).delete();
+    }
+  );
+
+  return true;
 }
 
 // Get settings from localStorage (for use in non-React contexts)

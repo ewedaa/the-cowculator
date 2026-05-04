@@ -6,7 +6,7 @@ import {
   AreaChart, Area, LineChart, Line, Legend
 } from 'recharts';
 import { useSettings } from '../SettingsContext';
-import db from '../db';
+import db, { SEEDED_ANIMALS_COUNT } from '../db';
 import './Dashboard.css';
 
 // ─── DYNAMIC DATA HOOKS ──────────────────────────────────────────────
@@ -220,7 +220,7 @@ export default function Dashboard({ addToast }) {
                 Welcome to Cowculator on your new PC! If your database appears empty, don't worry. Your data is stored locally in your browser.
               </p>
               <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>
-                You can easily reload the full sample of 165 buffalos or import your data.
+                You can easily reload the full sample of {SEEDED_ANIMALS_COUNT} buffalos or import your data.
               </p>
             </div>
             <div className="flex gap-sm">
@@ -230,7 +230,7 @@ export default function Dashboard({ addToast }) {
                 const toAdd = SEEDED_ANIMALS.map(a => ({ ...a, species: 'buffalo' }));
                 await db.animals.bulkAdd(toAdd);
                 window.location.reload();
-              }}>🐄 Load Sample (165)</button>
+              }}>🐄 Load Sample ({SEEDED_ANIMALS_COUNT})</button>
             </div>
           </div>
         </div>
@@ -479,4 +479,3 @@ export default function Dashboard({ addToast }) {
     </div>
   );
 }
-

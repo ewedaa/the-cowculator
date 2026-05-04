@@ -1,0 +1,330 @@
+.manual-entry { max-width: 1400px; }
+
+/* Tabs */
+.me-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.me-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.me-tab:hover { background: var(--surface); color: var(--text-primary); }
+.me-tab.active { background: var(--accent-muted); color: var(--accent-hover); }
+
+/* Hint bar */
+.me-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 16px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-md);
+  border-left: 3px solid var(--accent);
+  direction: rtl;
+  font-size: 0.82rem;
+}
+
+.me-hint-label { color: var(--text-tertiary); flex-shrink: 0; direction: ltr; }
+.me-hint-text  { color: var(--text-secondary); font-family: var(--font-mono); }
+
+/* Grid card */
+.me-grid-card { overflow: hidden; padding: 0; }
+
+.me-table-wrap {
+  overflow-x: auto;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+/* Spreadsheet table */
+.me-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.me-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+}
+
+.me-table th {
+  padding: 10px 8px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.me-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.me-table tbody tr:hover { background: var(--surface); }
+
+.row-num {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-align: center;
+  user-select: none;
+}
+
+/* Cell inputs — feel like a spreadsheet */
+.me-cell {
+  width: 100%;
+  min-width: 80px;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  outline: none;
+  transition: all 0.15s;
+}
+
+.me-cell:focus {
+  background: var(--bg-glass);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+.me-cell:hover { background: var(--surface); border-color: var(--border-hover); }
+
+.me-cell[type="date"] { min-width: 130px; }
+.me-cell[type="number"] { min-width: 80px; text-align: right; }
+
+select.me-cell { min-width: 90px; cursor: pointer; }
+
+/* Computed column */
+.me-computed {
+  display: block;
+  text-align: right;
+  padding: 6px 8px;
+  color: var(--accent-hover);
+  font-size: 0.85rem;
+  min-width: 60px;
+}
+
+/* Delete row button */
+.del-row {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.15s;
+}
+
+.del-row:hover { background: var(--lose-bg); color: var(--lose); }
+
+/* Footer */
+.me-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--border);
+}
+
+kbd {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+}
+
+/* Auto-computed preview hint */
+.me-auto-hint {
+  display: block;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+  padding: 0 8px;
+  pointer-events: none;
+}
+
+/* ── Paste Panel ─────────────────────────────────────── */
+.paste-panel {
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--accent);
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.paste-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-md);
+}
+
+.paste-header h3 { margin: 0 0 4px; font-size: 1rem; }
+
+.paste-col-map {
+  margin-bottom: var(--space-md);
+}
+
+.paste-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.paste-col-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  direction: rtl;
+}
+
+.paste-col-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--accent-muted);
+  color: var(--accent-hover);
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  direction: ltr;
+}
+
+.paste-area {
+  width: 100%;
+  min-height: 150px;
+  padding: 12px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.paste-area:focus { border-color: var(--accent); }
+
+.paste-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-md);
+}
+
+/* ── Shared Field Bar ───────────────────────────────────── */
+.shared-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 10px var(--space-lg);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+  border-left: 3px solid var(--win);
+  background: rgba(74, 222, 128, 0.04);
+}
+
+.shared-bar-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--win);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.shared-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.shared-field label {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.shared-field .me-cell {
+  min-width: 100px;
+  max-width: 140px;
+  padding: 4px 6px;
+  font-size: 0.8rem;
+}
+
+.btn-xs {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: var(--accent-muted);
+  color: var(--accent-hover);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-xs:hover { background: var(--accent); color: #fff; }
+
+/* fill-down hint on td hover */
+td[title="Double-click to fill down"]:hover {
+  background: rgba(99, 102, 241, 0.06);
+  cursor: cell;
+}
+
+

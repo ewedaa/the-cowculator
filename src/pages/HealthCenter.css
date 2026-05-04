@@ -1,0 +1,7 @@
+.health-center { max-width: 1400px; }
+.health-tabs { display: flex; gap: 0; padding: 4px; margin-bottom: var(--space-lg); }
+.health-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; border: none; background: transparent; color: var(--text-secondary); font-family: var(--font-primary); font-size: 0.9rem; font-weight: 500; cursor: pointer; border-radius: var(--radius-md); transition: all var(--transition-fast); }
+.health-tab:hover { background: var(--surface); }
+.health-tab.active { background: var(--accent-muted); color: var(--accent-hover); }
+.tab-count { background: var(--surface); padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.75rem; font-family: var(--font-mono); }
+.health-tab.active .tab-count { background: var(--accent); color: white; }

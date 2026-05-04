@@ -17,6 +17,7 @@ function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('cowculator-theme') || 'dark');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toasts, setToasts] = useState([]);
+  const [syncVersion, setSyncVersion] = useState(0);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -31,8 +32,18 @@ function App() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
   };
 
+  useEffect(() => {
+    const handleRemoteSync = () => {
+      setSyncVersion((version) => version + 1);
+      addToast('Data synced from another device');
+    };
+
+    window.addEventListener('cowculator:remote-sync', handleRemoteSync);
+    return () => window.removeEventListener('cowculator:remote-sync', handleRemoteSync);
+  }, []);
+
   return (
-    <SettingsProvider>
+    <SettingsProvider key={syncVersion}>
       <div className="app-layout">
         <Sidebar 
           theme={theme} 

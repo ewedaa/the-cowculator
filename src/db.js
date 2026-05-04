@@ -1,12 +1,24 @@
 import Dexie from 'dexie';
+import { createClient } from '@supabase/supabase-js';
 import { SEEDED_ANIMALS } from './seededAnimals';
 
 const db = new Dexie('CowculatorDB');
 export const SEEDED_ANIMALS_COUNT = SEEDED_ANIMALS.length;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://yjoeegeuabldsrbzisku.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_piB1lkEuZhqHOtN1t0Bisw_sjDys6I8';
+const SUPABASE_STATE_TABLE = 'cowculator_state';
+const SUPABASE_STATE_ROW_ID = 'shared';
+const SUPABASE_CLIENT_ID_KEY = 'cowculator-client-id';
+const SYNC_TABLES = ['animals', 'expenses', 'weightRecords', 'vaccineRecords', 'medicineRecords', 'dailyFeedCosts', 'revenueRecords', 'pens', 'importLogs', 'milkRecords', 'pregnancyRecords'];
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+let isApplyingRemoteState = false;
+let syncHooksInitialized = false;
+let syncChannelInitialized = false;
+let syncTimer = null;
 
 function normalizeAnimalRecord(record) {
   return {
@@ -22,6 +34,151 @@ function normalizeAnimalRecord(record) {
     lifecycle_stage: record.lifecycle_stage || 'fattening',
     status: record.status || 'active',
   };
+}
+
+function getClientId() {
+  const existingId = localStorage.getItem(SUPABASE_CLIENT_ID_KEY);
+  if (existingId) return existingId;
+
+  const newId = crypto.randomUUID();
+  localStorage.setItem(SUPABASE_CLIENT_ID_KEY, newId);
+  return newId;
+}
+
+function getLocalSettingsSnapshot() {
+  try {
+    return JSON.parse(localStorage.getItem('cowculator-settings') || 'null');
+  } catch {
+    return null;
+  }
+}
+
+async function exportAppState() {
+  const payload = {
+    version: 1,
+    settings: getLocalSettingsSnapshot(),
+    tables: {},
+  };
+
+  for (const tableName of SYNC_TABLES) {
+    payload.tables[tableName] = await db[tableName].toArray();
+  }
+
+  return payload;
+}
+
+async function applyAppState(payload) {
+  if (!payload?.tables) return;
+
+  isApplyingRemoteState = true;
+  try {
+    await db.transaction(
+      'rw',
+      ...SYNC_TABLES.map((tableName) => db[tableName]),
+      async () => {
+        for (const tableName of SYNC_TABLES) {
+          await db[tableName].clear();
+          const rows = payload.tables[tableName] || [];
+          if (rows.length > 0) {
+            await db[tableName].bulkAdd(rows);
+          }
+        }
+      }
+    );
+    await dedupeAnimalsByTag();
+
+    if (payload.settings) {
+      localStorage.setItem('cowculator-settings', JSON.stringify(payload.settings));
+    }
+  } finally {
+    isApplyingRemoteState = false;
+  }
+}
+
+async function pullRemoteStateFromSupabase() {
+  const { data, error } = await supabase
+    .from(SUPABASE_STATE_TABLE)
+    .select('payload, updated_at, updated_by')
+    .eq('id', SUPABASE_STATE_ROW_ID)
+    .maybeSingle();
+
+  if (error) {
+    if (error.code !== 'PGRST116') {
+      console.error('Supabase pull failed:', error.message);
+    }
+    return false;
+  }
+
+  if (!data?.payload) return false;
+  await applyAppState(data.payload);
+  return true;
+}
+
+async function pushLocalStateToSupabase() {
+  if (isApplyingRemoteState) return;
+
+  const payload = await exportAppState();
+  const { error } = await supabase
+    .from(SUPABASE_STATE_TABLE)
+    .upsert({
+      id: SUPABASE_STATE_ROW_ID,
+      payload,
+      updated_at: new Date().toISOString(),
+      updated_by: getClientId(),
+    }, { onConflict: 'id' });
+
+  if (error) {
+    console.error('Supabase push failed:', error.message);
+  }
+}
+
+export function scheduleRemoteSync() {
+  if (isApplyingRemoteState) return;
+
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    void pushLocalStateToSupabase();
+  }, 800);
+}
+
+function initializeSyncHooks() {
+  if (syncHooksInitialized) return;
+
+  for (const tableName of SYNC_TABLES) {
+    const table = db[tableName];
+    table.hook('creating', () => {
+      scheduleRemoteSync();
+    });
+    table.hook('updating', () => {
+      scheduleRemoteSync();
+    });
+    table.hook('deleting', () => {
+      scheduleRemoteSync();
+    });
+  }
+
+  syncHooksInitialized = true;
+}
+
+function initializeRealtimeSubscription() {
+  if (syncChannelInitialized) return;
+
+  supabase
+    .channel('cowculator-sync')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: SUPABASE_STATE_TABLE, filter: `id=eq.${SUPABASE_STATE_ROW_ID}` },
+      async (event) => {
+        if (event.new?.updated_by === getClientId()) return;
+        if (!event.new?.payload) return;
+
+        await applyAppState(event.new.payload);
+        window.dispatchEvent(new Event('cowculator:remote-sync'));
+      }
+    )
+    .subscribe();
+
+  syncChannelInitialized = true;
 }
 
 async function upsertSeededAnimals() {
@@ -134,11 +291,15 @@ export default db;
 if (typeof window !== 'undefined') {
   (async () => {
     try {
+      initializeSyncHooks();
+
+      const pulledRemoteState = await pullRemoteStateFromSupabase();
       const existing = await getUniqueAnimals();
       if (existing.length === 0) {
         // Automatically seed the sample buffalo list on first empty startup
         const inserted = await upsertSeededAnimals();
         console.log(`Successfully auto-seeded ${inserted} animals on first empty PC launch.`);
+        await pushLocalStateToSupabase();
       } else {
         const removedDuplicates = await dedupeAnimalsByTag();
         if (removedDuplicates > 0) {
@@ -149,7 +310,11 @@ if (typeof window !== 'undefined') {
             await db.animals.update(animal.id, { species: 'buffalo' });
           }
         }
+        if (!pulledRemoteState) {
+          await pushLocalStateToSupabase();
+        }
       }
+      initializeRealtimeSubscription();
     } catch (e) {
       console.error(e);
     }

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { scheduleRemoteSync } from './db';
 
 const DEFAULT_SETTINGS = {
   // Farm Info
@@ -82,6 +83,7 @@ export function SettingsProvider({ children }) {
 
   useEffect(() => {
     localStorage.setItem('cowculator-settings', JSON.stringify(settings));
+    scheduleRemoteSync();
   }, [settings]);
 
   const updateSettings = (updates) => {

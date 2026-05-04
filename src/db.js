@@ -8,6 +8,48 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+async function upsertSeededAnimals() {
+  const existingAnimals = await db.animals.toArray();
+  const existingTags = new Set(existingAnimals.map((animal) => String(animal.tag)));
+
+  const missingAnimals = SEEDED_ANIMALS
+    .filter((animal) => !existingTags.has(String(animal.tag)))
+    .map((animal) => ({
+      ...animal,
+      species: 'buffalo',
+    }));
+
+  if (missingAnimals.length > 0) {
+    await db.animals.bulkAdd(missingAnimals);
+  }
+
+  return missingAnimals.length;
+}
+
+export async function dedupeAnimalsByTag() {
+  const animals = await db.animals.toArray();
+  const seenTags = new Set();
+  const duplicateIds = [];
+
+  for (const animal of animals) {
+    const key = String(animal.tag);
+    if (!key) continue;
+
+    if (seenTags.has(key)) {
+      duplicateIds.push(animal.id);
+      continue;
+    }
+
+    seenTags.add(key);
+  }
+
+  if (duplicateIds.length > 0) {
+    await db.animals.bulkDelete(duplicateIds);
+  }
+
+  return duplicateIds.length;
+}
+
 db.version(2).stores({
   animals: '++id, tag, species, pen_id, status, lifecycle_stage, entry_date',
   expenses: '++id, animal_tag, date, category',
@@ -31,13 +73,13 @@ if (typeof window !== 'undefined') {
       const existing = await db.animals.toArray();
       if (existing.length === 0) {
         // Automatically seed the sample buffalo list on first empty startup
-        const toAdd = SEEDED_ANIMALS.map(a => ({
-          ...a,
-          species: 'buffalo'
-        }));
-        await db.animals.bulkAdd(toAdd);
-        console.log(`Successfully auto-seeded ${SEEDED_ANIMALS_COUNT} animals on first empty PC launch.`);
+        const inserted = await upsertSeededAnimals();
+        console.log(`Successfully auto-seeded ${inserted} animals on first empty PC launch.`);
       } else {
+        const removedDuplicates = await dedupeAnimalsByTag();
+        if (removedDuplicates > 0) {
+          console.log(`Removed ${removedDuplicates} duplicate animal records by tag.`);
+        }
         for (const animal of existing) {
           if (animal.species === 'heifer' || !animal.species) {
             await db.animals.update(animal.id, { species: 'buffalo' });
@@ -89,6 +131,16 @@ export async function deleteAnimalAndRelatedRecords(tag) {
   );
 
   return true;
+}
+
+export async function loadSeededAnimalsSafely() {
+  const inserted = await upsertSeededAnimals();
+  const removedDuplicates = await dedupeAnimalsByTag();
+  return {
+    inserted,
+    removedDuplicates,
+    totalSeedAnimals: SEEDED_ANIMALS_COUNT,
+  };
 }
 
 // Get settings from localStorage (for use in non-React contexts)

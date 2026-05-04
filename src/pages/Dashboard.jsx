@@ -6,7 +6,7 @@ import {
   AreaChart, Area, LineChart, Line, Legend
 } from 'recharts';
 import { useSettings } from '../SettingsContext';
-import db, { SEEDED_ANIMALS_COUNT } from '../db';
+import db, { SEEDED_ANIMALS_COUNT, loadSeededAnimalsSafely } from '../db';
 import './Dashboard.css';
 
 // ─── DYNAMIC DATA HOOKS ──────────────────────────────────────────────
@@ -50,7 +50,7 @@ export default function Dashboard({ addToast }) {
         const pregnancies = await db.pregnancyRecords?.toArray() || [];
 
         const totalHerd = animals.length;
-        const milkingBuffalos = animals.filter(a => a.lifecycle_stage === 'milking' || a.lifecycle_stage === 'lactating').length;
+        const milkingBuffalos = animals.filter(a => a.lifecycle_stage === 'fattening').length;
 
         // Herd Status Distribution
         const distMap = {};
@@ -205,7 +205,7 @@ export default function Dashboard({ addToast }) {
     <div className="dashboard animate-fade-in">
       <div className="page-header flex justify-between items-center">
         <div>
-          <h1>Dairy Buffalo Dashboard</h1>
+          <h1>Buffalo Fattening Dashboard</h1>
           <p>{settings.farmName} — {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/entry')}>+ Manual Entry</button>
@@ -226,9 +226,7 @@ export default function Dashboard({ addToast }) {
             <div className="flex gap-sm">
               <button className="btn btn-ghost" onClick={() => navigate('/import')}>Data Import</button>
               <button className="btn btn-primary" onClick={async () => {
-                const { SEEDED_ANIMALS } = await import('../seededAnimals');
-                const toAdd = SEEDED_ANIMALS.map(a => ({ ...a, species: 'buffalo' }));
-                await db.animals.bulkAdd(toAdd);
+                await loadSeededAnimalsSafely();
                 window.location.reload();
               }}>🐄 Load Sample ({SEEDED_ANIMALS_COUNT})</button>
             </div>
@@ -244,9 +242,9 @@ export default function Dashboard({ addToast }) {
         <div className="glass-card summary-card">
           <div className="summary-icon">🐃</div>
           <div className="summary-content">
-            <span className="summary-label">Milking Buffalos</span>
+            <span className="summary-label">Fattening Buffalos</span>
             <span className="summary-value font-mono text-white">{stats.milkingBuffalos} <span className="text-sm text-secondary">/ {stats.totalHerd}</span></span>
-            <span className="summary-sub">Active vs Total Herd</span>
+            <span className="summary-sub">Fattening vs Total Herd</span>
           </div>
         </div>
 
@@ -258,7 +256,7 @@ export default function Dashboard({ addToast }) {
             <span className="summary-value font-mono" style={{ color: '#3b82f6' }}>
               {stats.avgDailyYield.toFixed(1)} <span className="text-sm">kg/d</span>
             </span>
-            <span className="summary-sub text-win">Per Buffalo Average</span>
+            <span className="summary-sub text-win">Only if milk records exist</span>
           </div>
         </div>
 
@@ -280,7 +278,7 @@ export default function Dashboard({ addToast }) {
           <div className="summary-content">
             <span className="summary-label">Pregnancy Rate (PR)</span>
             <span className="summary-value font-mono text-white">{stats.pregnancyRate.toFixed(1)}%</span>
-            <span className="summary-sub">Herd Average</span>
+            <span className="summary-sub">Only if breeding data exists</span>
           </div>
         </div>
       </div>
@@ -380,7 +378,7 @@ export default function Dashboard({ addToast }) {
 
         {/* Milk Revenue vs Feed Cost (Area Chart) */}
         <div className="glass-card chart-card">
-          <h3>Milk Revenue vs. Feed Cost (Last 30 Days)</h3>
+          <h3>Revenue vs. Feed Cost (Last 30 Days)</h3>
           <div className="chart-container" style={{ paddingRight: 10 }}>
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={stats.financials} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
@@ -453,7 +451,7 @@ export default function Dashboard({ addToast }) {
 
         {/* Herd Lactation Curve */}
         <div className="glass-card chart-card">
-          <h3>Buffalo Lactation Curve (Actual vs. Target)</h3>
+          <h3>Yield Curve (Actual vs. Target)</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={stats.lactationCurve} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAnimalsWithPL } from '../db';
 import { useSettings } from '../SettingsContext';
-import db, { SEEDED_ANIMALS_COUNT, deleteAnimalAndRelatedRecords } from '../db';
+import db, { SEEDED_ANIMALS_COUNT, deleteAnimalAndRelatedRecords, loadSeededAnimalsSafely } from '../db';
 import { generateAnimalPDF } from '../utils/AnimalPDFReport';
 import './HerdView.css';
 
@@ -205,9 +205,7 @@ export default function HerdView({ addToast }) {
           <div className="flex gap-sm" style={{ marginTop: 16 }}>
             <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>+ Add Animal</button>
             <button className="btn btn-ghost" onClick={async () => {
-              const { SEEDED_ANIMALS } = await import('../seededAnimals');
-              const toAdd = SEEDED_ANIMALS.map(a => ({ ...a, species: 'buffalo' }));
-              await db.animals.bulkAdd(toAdd);
+              await loadSeededAnimalsSafely();
               window.location.reload();
             }}>🐄 Load Sample ({SEEDED_ANIMALS_COUNT})</button>
           </div>
